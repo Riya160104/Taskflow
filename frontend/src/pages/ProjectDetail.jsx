@@ -12,6 +12,7 @@ const ProjectDetail = () => {
   const [newTask, setNewTask] = useState({ title: '', description: '', dueDate: '', assignedTo: '' });
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [memberError, setMemberError] = useState('');
+  const [loadingMembers, setLoadingMembers] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -21,22 +22,42 @@ const ProjectDetail = () => {
     fetchMembers();
   }, [id]);
 
+  // When the task form opens, refresh members list to ensure dropdown is up-to-date
+  useEffect(() => {
+    if (showTaskForm) {
+      fetchMembers();
+    }
+  }, [showTaskForm]);
+
   const fetchProject = async () => {
     const res = await api.get('/projects');
     const found = res.data.find(p => p.id === id);
     setProject(found);
   };
+
   const fetchTasks = async () => {
     const res = await api.get(`/tasks?projectId=${id}`);
     setTasks(res.data);
   };
+
   const fetchMembers = async () => {
-    const res = await api.get(`/projects/${id}/members`);
-    setMembers(res.data);
+    try {
+      setLoadingMembers(true);
+      const res = await api.get(`/projects/${id}/members`);
+      setMembers(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMembers(false);
+    }
   };
 
   const handleCreateTask = async (e) => {
     e.preventDefault();
+    if (!newTask.assignedTo) {
+      alert('Please assign this task to a member');
+      return;
+    }
     await api.post('/tasks', { ...newTask, projectId: id });
     setShowTaskForm(false);
     setNewTask({ title: '', description: '', dueDate: '', assignedTo: '' });
@@ -48,7 +69,6 @@ const ProjectDetail = () => {
     fetchTasks();
   };
 
-  // FIXED ADD MEMBER FUNCTION
   const handleAddMember = async (e) => {
     e.preventDefault();
     setMemberError('');
@@ -57,14 +77,12 @@ const ProjectDetail = () => {
       return;
     }
     try {
-      // Search user by email
       const searchRes = await api.get(`/users/search?email=${encodeURIComponent(newMemberEmail)}`);
       const foundUser = searchRes.data;
-      // Add to project
       await api.post(`/projects/${id}/members`, { userId: foundUser.id });
       alert(`Member ${foundUser.name} added successfully!`);
       setNewMemberEmail('');
-      fetchMembers();
+      fetchMembers(); // Refresh member list
     } catch (err) {
       console.error(err);
       setMemberError(err.response?.data?.message || 'Failed to add member');
@@ -85,22 +103,44 @@ const ProjectDetail = () => {
           <p style={{ color: '#6b7280' }}>{project.description}</p>
         </div>
         {user?.role === 'admin' && (
-          <button className="btn-primary" onClick={() => setShowTaskForm(!showTaskForm)}>{showTaskForm ? 'Cancel' : '+ Add Task'}</button>
+          <button className="btn-primary" onClick={() => setShowTaskForm(!showTaskForm)}>
+            {showTaskForm ? 'Cancel' : '+ Add Task'}
+          </button>
         )}
       </div>
 
       {showTaskForm && (
         <div className="glass-card" style={{ padding: '28px', marginBottom: '32px' }}>
           <h3 style={{ marginBottom: '20px', fontWeight: '600' }}>New Task</h3>
+          {members.length === 0 && !loadingMembers && (
+            <div style={{ marginBottom: '16px', padding: '12px', background: '#ffe4e2', borderRadius: '12px', color: '#c2410c' }}>
+              No members in this project yet. Please add a member first.
+            </div>
+          )}
           <form onSubmit={handleCreateTask}>
             <input type="text" placeholder="Title" value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} className="input-modern auth-input" required />
             <textarea placeholder="Description" value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} className="input-modern auth-input" rows="2" />
             <input type="date" value={newTask.dueDate} onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})} className="input-modern auth-input" required />
-            <select value={newTask.assignedTo} onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})} className="input-modern auth-input" required>
-              <option value="">Assign to member</option>
-              {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            <select 
+              value={newTask.assignedTo} 
+              onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})} 
+              className="input-modern auth-input" 
+              required
+              disabled={members.length === 0}
+            >
+              <option value="">Select a member</option>
+              {members.map(m => (
+                <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
+              ))}
             </select>
-            <button type="submit" className="btn-primary" style={{ width: '100%' }}>Create Task</button>
+            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={members.length === 0}>
+              Create Task
+            </button>
+            {members.length === 0 && !loadingMembers && (
+              <p style={{ fontSize: '12px', marginTop: '8px', textAlign: 'center', color: '#e11d48' }}>
+                ⚠️ Add at least one member to the project to create tasks.
+              </p>
+            )}
           </form>
         </div>
       )}
@@ -123,7 +163,7 @@ const ProjectDetail = () => {
         {tasks.length === 0 && <p style={{ textAlign: 'center', color: '#9ca3af', padding: '40px' }}>No tasks yet. Add your first task!</p>}
       </div>
 
-      {/* MEMBERS SECTION - FIXED */}
+      {/* MEMBERS SECTION */}
       <div className="glass-card" style={{ padding: '28px', marginTop: '32px' }}>
         <h3 style={{ fontWeight: '600', marginBottom: '16px' }}>Team Members</h3>
         {user?.role === 'admin' && (
@@ -141,13 +181,17 @@ const ProjectDetail = () => {
           </form>
         )}
         {memberError && <p style={{ color: '#dc2626', marginBottom: '12px', fontSize: '14px' }}>{memberError}</p>}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-          {members.map(m => (
-            <span key={m.id} style={{ background: '#f3e8ff', padding: '6px 16px', borderRadius: '40px', fontSize: '14px' }}>
-              {m.name} ({m.email})
-            </span>
-          ))}
-        </div>
+        {loadingMembers ? (
+          <p>Loading members...</p>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+            {members.map(m => (
+              <span key={m.id} style={{ background: '#f3e8ff', padding: '6px 16px', borderRadius: '40px', fontSize: '14px' }}>
+                {m.name} ({m.email})
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

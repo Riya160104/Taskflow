@@ -1,6 +1,5 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
-import User from './User.js';
 
 const Project = sequelize.define('Project', {
   id: {
@@ -10,8 +9,7 @@ const Project = sequelize.define('Project', {
   },
   name: {
     type: DataTypes.STRING,
-    allowNull: false,
-    validate: { len: [3, 100] }
+    allowNull: false
   },
   description: {
     type: DataTypes.TEXT,
@@ -19,12 +17,8 @@ const Project = sequelize.define('Project', {
   },
   createdBy: {
     type: DataTypes.UUID,
-    allowNull: false,
-    references: { model: 'Users', key: 'id' }
+    allowNull: false
   }
 });
-
-Project.belongsTo(User, { as: 'creator', foreignKey: 'createdBy' });
-User.hasMany(Project, { foreignKey: 'createdBy' });
 
 export default Project;

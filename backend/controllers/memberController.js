@@ -1,5 +1,4 @@
-import ProjectMember from '../models/ProjectMember.js';
-import User from '../models/User.js';
+import { ProjectMember, User } from '../models/index.js';
 
 export const getProjectMembers = async (req, res) => {
   try {

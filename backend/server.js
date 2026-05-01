@@ -8,7 +8,7 @@ import authRoutes from './routes/authRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
-import userRoutes from './routes/userRoutes.js'; // ADD THIS
+import userRoutes from './routes/userRoutes.js';
 import User from './models/User.js';
 import Project from './models/Project.js';
 import ProjectMember from './models/ProjectMember.js';
@@ -22,6 +22,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -30,7 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/users', userRoutes); // ADD THIS
+app.use('/api/users', userRoutes);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
@@ -40,12 +41,24 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Database sync and server start
 const startServer = async () => {
   try {
     await sequelize.authenticate();
     console.log('Database connected');
+    
+    // For SQLite local, disable foreign keys temporarily to avoid sync errors
+    if (process.env.NODE_ENV !== 'production') {
+      await sequelize.query('PRAGMA foreign_keys = OFF');
+    }
     await sequelize.sync({ alter: true });
+    if (process.env.NODE_ENV !== 'production') {
+      await sequelize.query('PRAGMA foreign_keys = ON');
+    }
+    
     console.log('Models synced');
+    
+    // Create default admin if none exists
     const adminExists = await User.findOne({ where: { role: 'admin' } });
     if (!adminExists) {
       await User.create({
@@ -56,6 +69,7 @@ const startServer = async () => {
       });
       console.log('Default admin created: admin@example.com / admin123');
     }
+    
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

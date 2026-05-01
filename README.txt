@@ -1,8 +1,8 @@
 TEAM TASK MANAGER - Full Stack Application
 ===========================================
 
-Live URL: [Your Railway URL after deployment]
-GitHub: [Your GitHub Repo URL]
+Live URL: [taskflow-tracker.up.railway.app]
+
 
 Features:
 ---------
@@ -93,4 +93,3 @@ Troubleshooting:
 - Ensure PostgreSQL plugin is added in Railway
 - For local development, create .env files with correct credentials
 
-Contact: [Your Name/Email]

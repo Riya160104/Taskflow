@@ -3,7 +3,7 @@ import Project from './Project.js';
 import ProjectMember from './ProjectMember.js';
 import Task from './Task.js';
 
-// User <-> Project (createdBy)
+// User <-> Project (creator)
 Project.belongsTo(User, { as: 'creator', foreignKey: 'createdBy' });
 User.hasMany(Project, { foreignKey: 'createdBy' });
 
@@ -11,13 +11,13 @@ User.hasMany(Project, { foreignKey: 'createdBy' });
 User.belongsToMany(Project, { through: ProjectMember, foreignKey: 'userId', otherKey: 'projectId' });
 Project.belongsToMany(User, { through: ProjectMember, foreignKey: 'projectId', otherKey: 'userId' });
 
-// ProjectMember associations (for direct queries)
+// ProjectMember direct associations
 ProjectMember.belongsTo(User, { foreignKey: 'userId' });
 ProjectMember.belongsTo(Project, { foreignKey: 'projectId' });
 User.hasMany(ProjectMember, { foreignKey: 'userId' });
 Project.hasMany(ProjectMember, { foreignKey: 'projectId' });
 
-// Task associations
+// Task associations (unique aliases: 'assignee' and 'creator')
 Task.belongsTo(Project, { foreignKey: 'projectId' });
 Task.belongsTo(User, { as: 'assignee', foreignKey: 'assignedTo' });
 Task.belongsTo(User, { as: 'creator', foreignKey: 'createdBy' });

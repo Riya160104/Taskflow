@@ -41,7 +41,15 @@ const startServer = async () => {
   try {
     await sequelize.authenticate();
     console.log('Database connected');
+
+    // For SQLite local, temporarily disable foreign keys to avoid sync errors
+    if (process.env.NODE_ENV !== 'production') {
+      await sequelize.query('PRAGMA foreign_keys = OFF');
+    }
     await sequelize.sync({ alter: true });
+    if (process.env.NODE_ENV !== 'production') {
+      await sequelize.query('PRAGMA foreign_keys = ON');
+    }
     console.log('Models synced');
 
     const adminExists = await User.findOne({ where: { role: 'admin' } });

@@ -15,8 +15,6 @@ const ProjectMember = sequelize.define('ProjectMember', {
     type: DataTypes.UUID,
     allowNull: false
   }
-}, {
-  tableName: 'ProjectMembers'
 });
 
 export default ProjectMember;

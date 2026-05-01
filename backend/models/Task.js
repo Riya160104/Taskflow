@@ -1,7 +1,5 @@
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
-import User from './User.js';
-import Project from './Project.js';
 
 const Task = sequelize.define('Task', {
   id: {
@@ -11,8 +9,7 @@ const Task = sequelize.define('Task', {
   },
   title: {
     type: DataTypes.STRING,
-    allowNull: false,
-    validate: { len: [3, 200] }
+    allowNull: false
   },
   description: {
     type: DataTypes.TEXT,
@@ -28,24 +25,16 @@ const Task = sequelize.define('Task', {
   },
   projectId: {
     type: DataTypes.UUID,
-    allowNull: false,
-    references: { model: 'Projects', key: 'id' }
+    allowNull: false
   },
   assignedTo: {
     type: DataTypes.UUID,
-    allowNull: false,
-    references: { model: 'Users', key: 'id' }
+    allowNull: false
   },
   createdBy: {
     type: DataTypes.UUID,
-    allowNull: false,
-    references: { model: 'Users', key: 'id' }
+    allowNull: false
   }
 });
-
-Task.belongsTo(Project, { foreignKey: 'projectId' });
-Task.belongsTo(User, { as: 'assignee', foreignKey: 'assignedTo' });
-Task.belongsTo(User, { as: 'creator', foreignKey: 'createdBy' });
-Project.hasMany(Task, { foreignKey: 'projectId' });
 
 export default Task;

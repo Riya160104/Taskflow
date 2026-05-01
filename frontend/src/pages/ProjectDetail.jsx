@@ -24,22 +24,14 @@ const ProjectDetail = () => {
     fetchMembers();
   }, [id]);
 
-  // Auto-refresh members every 3 seconds when the task form is open
   useEffect(() => {
     if (showTaskForm) {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(() => {
-        fetchMembers(true);
-      }, 3000);
+      intervalRef.current = setInterval(() => fetchMembers(true), 3000);
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-    return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [showTaskForm]);
 
   const fetchProject = async () => {
@@ -65,7 +57,7 @@ const ProjectDetail = () => {
       setDebug(`Members: ${res.data.length} found – ${res.data.map(m => m.email).join(', ')}`);
     } catch (err) {
       console.error(err);
-      setDebug(`Error: ${err.response?.status} – ${err.response?.data?.message}`);
+      setDebug(`Error: ${err.response?.status}`);
     } finally {
       if (!silent) setLoading(false);
     }
@@ -74,7 +66,7 @@ const ProjectDetail = () => {
   const handleCreateTask = async (e) => {
     e.preventDefault();
     if (!newTask.assignedTo) {
-      alert('Please select a member to assign this task');
+      alert('Please select a member');
       return;
     }
     try {
@@ -82,9 +74,7 @@ const ProjectDetail = () => {
       setShowTaskForm(false);
       setNewTask({ title: '', description: '', dueDate: '', assignedTo: '' });
       fetchTasks();
-    } catch (err) {
-      alert('Failed to create task');
-    }
+    } catch (err) { alert('Failed to create task'); }
   };
 
   const handleUpdateStatus = async (taskId, status) => {
@@ -94,11 +84,21 @@ const ProjectDetail = () => {
     } catch (err) { console.error(err); }
   };
 
+  const handleDeleteTask = async (taskId) => {
+    if (!confirm('Delete this task permanently?')) return;
+    try {
+      await api.delete(`/tasks/${taskId}`);
+      fetchTasks();
+    } catch (err) {
+      alert('Failed to delete task');
+    }
+  };
+
   const handleAddMember = async (e) => {
     e.preventDefault();
     setMemberError('');
     if (!newMemberEmail.trim()) {
-      setMemberError('Please enter an email address');
+      setMemberError('Please enter an email');
       return;
     }
     try {
@@ -121,6 +121,7 @@ const ProjectDetail = () => {
   return (
     <div className="container" style={{ paddingTop: '40px', paddingBottom: '60px' }}>
       <button onClick={() => navigate('/projects')} style={{ background: 'none', border: 'none', color: '#8b5cf6', cursor: 'pointer', marginBottom: '20px' }}>← Back</button>
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 className="auth-title">{project.name}</h1>
@@ -133,7 +134,6 @@ const ProjectDetail = () => {
         )}
       </div>
 
-      {/* Debug panel */}
       <div style={{ background: '#eef2ff', padding: '8px', borderRadius: '8px', marginBottom: '16px', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>{debug || 'Loading...'}</span>
         <button onClick={() => fetchMembers()} style={{ background: '#c7d2fe', border: 'none', padding: '4px 12px', borderRadius: '20px', cursor: 'pointer' }}>⟳ Refresh</button>
@@ -147,47 +147,43 @@ const ProjectDetail = () => {
             <input type="text" placeholder="Title" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="input-modern auth-input" required />
             <textarea placeholder="Description" value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} rows="2" className="input-modern auth-input" />
             <input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} className="input-modern auth-input" required />
-            <select
-              value={newTask.assignedTo}
-              onChange={e => setNewTask({...newTask, assignedTo: e.target.value})}
-              className="input-modern auth-input"
-              required
-            >
+            <select value={newTask.assignedTo} onChange={e => setNewTask({...newTask, assignedTo: e.target.value})} className="input-modern auth-input" required>
               <option value="">-- Select a member --</option>
-              {members.map(m => (
-                <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
-              ))}
+              {members.map(m => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}
             </select>
             <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={members.length === 0}>Create Task</button>
           </form>
-          {members.length === 0 && (
-            <p style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px' }}>
-              👉 Use the "Team Members" section below to add a member.
-            </p>
-          )}
         </div>
       )}
 
-      {/* Task list */}
       <div className="glass-card" style={{ padding: '32px' }}>
         {pendingTasks.map(task => (
-          <div key={task.id} className="task-item">
-            <input type="checkbox" onChange={e => handleUpdateStatus(task.id, e.target.checked ? 'completed' : 'pending')} className="task-checkbox" />
-            <div className="task-title">{task.title}</div>
-            <div className="task-date">{new Date(task.dueDate).toLocaleDateString()}</div>
+          <div key={task.id} className="task-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+              <input type="checkbox" onChange={e => handleUpdateStatus(task.id, e.target.checked ? 'completed' : 'pending')} className="task-checkbox" />
+              <div className="task-title">{task.title}</div>
+              <div className="task-date">{new Date(task.dueDate).toLocaleDateString()}</div>
+            </div>
+            {user?.role === 'admin' && (
+              <button onClick={() => handleDeleteTask(task.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px' }}>🗑️</button>
+            )}
           </div>
         ))}
         {completedTasks.map(task => (
-          <div key={task.id} className="task-item" style={{ opacity: 0.7 }}>
-            <input type="checkbox" checked={true} onChange={e => handleUpdateStatus(task.id, e.target.checked ? 'completed' : 'pending')} className="task-checkbox" />
-            <div className="task-title completed">{task.title}</div>
-            <div className="task-date">{new Date(task.dueDate).toLocaleDateString()}</div>
+          <div key={task.id} className="task-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', opacity: 0.7 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
+              <input type="checkbox" checked={true} onChange={e => handleUpdateStatus(task.id, e.target.checked ? 'completed' : 'pending')} className="task-checkbox" />
+              <div className="task-title completed">{task.title}</div>
+              <div className="task-date">{new Date(task.dueDate).toLocaleDateString()}</div>
+            </div>
+            {user?.role === 'admin' && (
+              <button onClick={() => handleDeleteTask(task.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px' }}>🗑️</button>
+            )}
           </div>
         ))}
         {tasks.length === 0 && <p style={{ textAlign: 'center', color: '#9ca3af', padding: '40px' }}>No tasks yet. Click "Add Task".</p>}
       </div>
 
-      {/* Team Members */}
       <div className="glass-card" style={{ padding: '28px', marginTop: '32px' }}>
         <h3>Team Members</h3>
         {user?.role === 'admin' && (
@@ -198,11 +194,7 @@ const ProjectDetail = () => {
         )}
         {memberError && <p style={{ color: 'red', marginBottom: '12px' }}>{memberError}</p>}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-          {members.map(m => (
-            <span key={m.id} style={{ background: '#f3e8ff', padding: '6px 16px', borderRadius: '40px', fontSize: '14px' }}>
-              {m.name} ({m.email})
-            </span>
-          ))}
+          {members.map(m => <span key={m.id} style={{ background: '#f3e8ff', padding: '6px 16px', borderRadius: '40px' }}>{m.name} ({m.email})</span>)}
         </div>
       </div>
     </div>

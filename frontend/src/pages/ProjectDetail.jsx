@@ -13,6 +13,7 @@ const ProjectDetail = () => {
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [memberError, setMemberError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState('');
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -21,13 +22,6 @@ const ProjectDetail = () => {
     fetchTasks();
     fetchMembers();
   }, [id]);
-
-  // Refresh members list every time the task form opens
-  useEffect(() => {
-    if (showTaskForm) {
-      fetchMembers();
-    }
-  }, [showTaskForm]);
 
   const fetchProject = async () => {
     try {
@@ -51,11 +45,17 @@ const ProjectDetail = () => {
   const fetchMembers = async () => {
     try {
       setLoading(true);
+      setDebugInfo('Fetching members...');
       const res = await api.get(`/projects/${id}/members`);
-      console.log('Fetched members:', res.data); // Debug log
+      console.log('Members API response:', res.data);
+      setDebugInfo(`Found ${res.data.length} members: ${JSON.stringify(res.data.map(m => m.email))}`);
       setMembers(res.data);
+      if (res.data.length === 0) {
+        setDebugInfo(prev => prev + ' (No members in this project)');
+      }
     } catch (err) {
       console.error(err);
+      setDebugInfo(`Error fetching members: ${err.response?.status} ${err.response?.data?.message || err.message}`);
     } finally {
       setLoading(false);
     }
@@ -95,14 +95,12 @@ const ProjectDetail = () => {
       return;
     }
     try {
-      // Search user by email
       const searchRes = await api.get(`/users/search?email=${encodeURIComponent(newMemberEmail)}`);
       const foundUser = searchRes.data;
-      // Add to project
       await api.post(`/projects/${id}/members`, { userId: foundUser.id });
       alert(`Member ${foundUser.name} added successfully!`);
       setNewMemberEmail('');
-      fetchMembers(); // Refresh member list
+      fetchMembers();
     } catch (err) {
       console.error(err);
       setMemberError(err.response?.data?.message || 'Failed to add member');
@@ -118,7 +116,6 @@ const ProjectDetail = () => {
 
   return (
     <div className="container" style={{ paddingTop: '40px', paddingBottom: '60px' }}>
-      {/* Back button */}
       <button
         onClick={() => navigate('/projects')}
         style={{ background: 'none', border: 'none', color: '#8b5cf6', cursor: 'pointer', marginBottom: '20px' }}
@@ -126,7 +123,6 @@ const ProjectDetail = () => {
         ← Back to Projects
       </button>
 
-      {/* Project header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 className="auth-title" style={{ marginBottom: '8px' }}>{project.name}</h1>
@@ -139,7 +135,12 @@ const ProjectDetail = () => {
         )}
       </div>
 
-      {/* Add Task Form */}
+      {/* Debug Info Panel */}
+      <div style={{ background: '#f3f4f6', padding: '12px', borderRadius: '12px', marginBottom: '20px', fontSize: '12px', fontFamily: 'monospace' }}>
+        <strong>Debug:</strong> {debugInfo}
+        <button onClick={fetchMembers} style={{ marginLeft: '12px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}>Refresh Members</button>
+      </div>
+
       {showTaskForm && (
         <div className="glass-card" style={{ padding: '28px', marginBottom: '32px' }}>
           <h3 style={{ marginBottom: '20px', fontWeight: '600' }}>Create New Task</h3>
@@ -202,7 +203,6 @@ const ProjectDetail = () => {
         </div>
       )}
 
-      {/* Task List */}
       <div className="glass-card" style={{ padding: '32px' }}>
         {pendingTasks.length > 0 && (
           <>
@@ -245,7 +245,6 @@ const ProjectDetail = () => {
         )}
       </div>
 
-      {/* Team Members Section */}
       <div className="glass-card" style={{ padding: '28px', marginTop: '32px' }}>
         <h3 style={{ fontWeight: '600', marginBottom: '16px' }}>Team Members</h3>
         {user?.role === 'admin' && (

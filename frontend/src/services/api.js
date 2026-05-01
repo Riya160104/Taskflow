@@ -1,10 +1,10 @@
 import axios from 'axios';
 
-// Railway production URL – apni actual URL daal
-const BASE_URL = 'https://magnificent-commitment-production-4a69.up.railway.app';
+// Production mein /api use karo (same domain), localhost pe 5000
+const API_URL = import.meta.env.PROD ? '/api' : 'http://localhost:5000/api';
 
 const api = axios.create({
-  baseURL: `${BASE_URL}/api`,
+  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' }
 });
 
